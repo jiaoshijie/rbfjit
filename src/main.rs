@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::env;
 use std::fs::read_to_string;
 
+use rbfjit::mmap;
+
 enum OpsKind {
     Inc,          // +
     Dec,          // -
@@ -32,7 +34,8 @@ impl From<u8> for OpsKind {
 
 fn main() {
     let insts = read_insts();
-    interpreter(&insts);
+    // interpreter(&insts);
+    jit(&insts);
 }
 
 fn read_insts() -> Vec<u8> {
@@ -104,6 +107,62 @@ fn interpreter(insts: &Vec<u8>) {
         }
         ip += 1;
     }
+}
+
+fn jit(insts: &Vec<u8>) {
+    let mut ip: usize = 0;
+    let mut jmp_table: HashMap<usize, usize> = HashMap::new();
+
+    let mut ass: Vec<u8> = Vec::new();
+
+    while ip < insts.len() {
+        match insts[ip].into() {
+            OpsKind::Inc => {
+                ass.extend([0x80, 0x04, 0x3e, 0x01]);
+            }
+            OpsKind::Dec => {
+                ass.extend([0x80, 0x2c, 0x3e, 0x01]);
+            }
+            OpsKind::Left => {
+                ass.extend([0x48, 0x83, 0xef, 0x01]);
+            }
+            OpsKind::Right => {
+                // TODO:
+                ass.extend([0x48, 0x83, 0xc7, 0x01]);
+            }
+            OpsKind::Output => {
+                todo!();
+                // println!("{}", array[dp]);
+            }
+            OpsKind::Input => {
+                todo!();
+            }
+            OpsKind::JmpIfZero => {
+                let mut matched = jmp_table.get(&ip);
+                if matched.is_none() {
+                    matched = gen_jmp_table(&insts, &mut jmp_table, ip);
+                }
+
+            }
+            OpsKind::JmpIfNonzero => {
+                let matched = jmp_table.get(&ip);
+                assert!(matched.is_some());
+                todo!();
+            }
+            OpsKind::Nop => {}
+        }
+        ip += 1;
+    }
+    ass.push(0xc3);
+    let mm = mmap::get_exec_mem(ass.len());
+    mmap::c_memcpy(mm, &ass, ass.len());
+    let code_to_run = mmap::to_void_fn_usize_veci8(mm);
+    let mut array: Vec<i8> = vec![0; 30_000];
+    // dp %rdi, array %rsi
+    code_to_run(0, array.as_mut_ptr());
+    mmap::release_exec_mem(mm, ass.len());
+    println!("{}", array[0]);
+    println!("{}", array[1]);
 }
 
 fn gen_jmp_table<'a>(insts: &Vec<u8>, jmp_table: &'a mut HashMap<usize, usize>, ip: usize) -> Option<&'a usize> {

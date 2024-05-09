@@ -1,12 +1,17 @@
 use rbfjit::mmap;
 use std::fs::File;
-use std::os::fd::AsRawFd;
+use std::io::Read;
 
 fn main() {
-    let fd = File::open("./hello.o").unwrap();
-    let len = fd.metadata().unwrap().len() as usize;
-    let raw_insturction = mmap::get_exec_mem(fd.as_raw_fd(), len);
-    let code_to_run = mmap::to_void_fn_void(raw_insturction);
+    let mut fd = File::open("./hello.o").unwrap();
+    let mut insts = Vec::<u8>::new();
+    let len = fd.read_to_end(&mut insts).unwrap();
+
+    let mm = mmap::get_exec_mem(len);
+
+    mmap::c_memcpy(mm, &insts, len);
+
+    let code_to_run = mmap::to_void_fn_void(mm);
     code_to_run();
-    mmap::release_exec_mem(raw_insturction, len);
+    mmap::release_exec_mem(mm, len);
 }
