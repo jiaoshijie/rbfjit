@@ -46,3 +46,14 @@ pub fn to_void_fn_usize_veci8(ptr: *mut c_void) -> extern "C" fn(usize, *mut i8)
 pub fn c_memcpy(dest: *mut c_void, src: &[u8], n: usize) {
     unsafe { memcpy(dest, src as *const [u8] as *const c_void, n as size_t); }
 }
+
+pub fn patching(ass: &mut Vec<u8>, left: usize, right: usize) {
+    let offset = (right - left) as i32;
+    let neg_off = -offset;
+    unsafe {
+        let left_ptr = ass.as_mut_ptr().add(left) as *mut c_void;
+        let right_ptr = ass.as_mut_ptr().add(right) as *mut c_void;
+        memcpy(left_ptr, &offset as *const i32 as *const c_void, 4);
+        memcpy(right_ptr, &neg_off as *const i32 as *const c_void, 4);
+    }
+}

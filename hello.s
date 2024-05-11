@@ -2,4 +2,4 @@
 .global _start
 
 _start:
- je 
+  popq %rdi
