@@ -1,4 +1,4 @@
-# A jit compiler implemetation for brainfuck using rust
+# A jit compiler implemetation for brainfuck using rust for x86_64
 
 `brainfuck` 仅仅包含 8 个简单的命令，一个数据指针和一个指令指针。
 
